@@ -51,6 +51,7 @@ type Verifier struct {
 	issuer         string
 	audience       string
 	groupsClaim    string
+	scopes         string
 	clusterCert    func() *shared.CertInfo
 	httpClientFunc func() (*http.Client, error)
 
@@ -330,6 +331,7 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
 	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
+	w.Header().Set("X-LXD-OIDC-scopes", o.scopes)
 
 	return nil
 }
@@ -426,6 +428,10 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
 	if o.groupsClaim != "" {
 		oidcScopes = append(oidcScopes, o.groupsClaim)
+	}
+
+	if o.scopes != "" {
+		oidcScopes = strings.Split(o.scopes, " ")
 	}
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
@@ -617,7 +623,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, audience string, scopes string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -628,6 +634,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		scopes:               scopes,
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
